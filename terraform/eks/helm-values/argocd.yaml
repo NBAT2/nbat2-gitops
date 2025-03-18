@@ -1,0 +1,16 @@
+server:
+  replicas: 2
+  service:
+    type: NodePort
+
+redis-ha:
+  enabled: true
+
+controller:
+  replicas: 1
+
+repoServer:
+  replicas: 2
+
+applicationSet:
+  replicas: 2

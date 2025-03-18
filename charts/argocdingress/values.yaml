@@ -1,0 +1,11 @@
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Details of ArgoCD deployment
+argocdlb:
+  # -- Hostname for ArgoCD ingress
+  hostname: ""
+  # -- Certificate ARN for ArgoCD ingress
+  certificatearn: ""
+  # -- List of subnets for ArgoCD ingress
+  subnetlist: ""

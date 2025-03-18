@@ -1,0 +1,39 @@
+{{- $hostname := .Values.argocdlb.hostname | required ".Values.argocdlb.hostname is required." -}}
+{{- $certificatearn := .Values.argocdlb.certificatearn | required ".Values.argocdlb.certificatearn is required." -}}
+{{- $subnetlist := .Values.argocdlb.subnetlist | required ".Values.argocdlb.subnetlist is required." -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/backend-protocol: HTTPS
+    # Use this annotation (which must match a service name) to route traffic to HTTP2 backends.
+    alb.ingress.kubernetes.io/conditions.argogrpc: '[{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: '{{ $certificatearn }}'
+    alb.ingress.kubernetes.io/subnets: '{{ $subnetlist }}'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+  name: argocd
+  namespace: argocd
+spec:
+  rules:
+  - host: {{ $hostname }}
+    http:
+      paths:
+      - path: /
+        backend:
+          service:
+            name: argogrpc
+            port:
+              number: 443
+        pathType: Prefix
+      - path: /
+        backend:
+          service:
+            name: argo-cd-argocd-server
+            port:
+              number: 443
+        pathType: Prefix
+  tls:
+  - hosts:
+    - {{ $hostname }}
