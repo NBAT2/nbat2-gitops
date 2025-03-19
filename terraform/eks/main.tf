@@ -208,10 +208,10 @@ resource "time_sleep" "wait_lb_controller_deployment" {
   create_duration = "60s"
 }
 
-resource "helm_release" "argocdingress" {
+resource "helm_release" "argocd_ingress" {
   depends_on = [aws_acm_certificate_validation.argocd, time_sleep.wait_lb_controller_deployment]
-  name       = "argocdingress"
-  chart      = "${path.module}/../../charts/argocdingress"
+  name       = "argocd-ingress"
+  chart      = "${path.module}/../../charts/argocd-ingress"
   namespace  = "argocd"
   version    = "0.10.0"
 

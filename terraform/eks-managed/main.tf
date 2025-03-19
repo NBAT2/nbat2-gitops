@@ -58,7 +58,6 @@ module "managed_eks" {
     }
   }
 
-
   access_entries = {
     ssorole = {
       kubernetes_groups = []
@@ -88,6 +87,7 @@ module "managed_eks" {
       }
     }
   }
+
   cluster_upgrade_policy = {
     support_type = var.managed_eks_cluster.cluster_support_type
   }
@@ -143,11 +143,11 @@ resource "aws_iam_role" "argocd_admin_role" {
   })
 }
 
-resource "helm_release" "argocdmanagedcluster" {
+resource "helm_release" "argocd_managed_cluster" {
   provider   = helm.argocdcluster
   depends_on = [module.managed_eks]
   name       = module.managed_eks.cluster_name
-  chart      = "${path.module}/../../charts/argocdmanagedcluster"
+  chart      = "${path.module}/../../charts/argocd-managed-cluster"
   namespace  = "argocd"
   version    = "0.1.0"
 

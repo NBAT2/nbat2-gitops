@@ -10,12 +10,6 @@ managed_eks_cluster = {
 
 sso_cluster_admin_role_name = "AWSReservedSSO_AWSSSO-NBAT2_66cc46e0d7d94e79"
 
-app_repository_url = "https://github.com/codefresh-contrib/gitops-cert-level-2-examples"
-
-app_repository_branch = "main"
-
-app_repository_path = "custom-diff/02-external-app"
-
 create_baseapp = false
 
 enable_aws_load_balancer_controller = true
