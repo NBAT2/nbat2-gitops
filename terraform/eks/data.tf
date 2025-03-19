@@ -33,3 +33,6 @@ data "aws_subnets" "public" {
     values = ["${data.aws_vpc.vpc.tags.Name}-public-${each.key}"]
   }
 }
+
+data "aws_organizations_organization" "current" {}
+

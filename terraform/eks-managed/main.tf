@@ -57,6 +57,8 @@ module "managed_eks" {
       }
     }
   }
+
+
   access_entries = {
     ssorole = {
       kubernetes_groups = []
@@ -71,6 +73,7 @@ module "managed_eks" {
         }
       }
     }
+
     argocdrole = {
       kubernetes_groups = []
       principal_arn     = aws_iam_role.argocd_admin_role.arn
@@ -133,43 +136,21 @@ resource "aws_iam_role" "argocd_admin_role" {
         ]
         Effect = "Allow"
         Principal = {
-          AWS = data.aws_iam_role.argocd_service_account.arn
+          AWS = local.argocd_role_arn
         }
       },
     ]
   })
 }
 
-resource "aws_iam_policy" "argocd_admin_assume_role_policy" {
-  name        = "${var.name_prefix}ArgoCDAdminAssumeRole"
-  description = "Allow ArgoCD service account to assume cluster admin role"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "sts:AssumeRole",
-        ]
-        Effect   = "Allow"
-        Resource = aws_iam_role.argocd_admin_role.arn
-      },
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "argocd_admin_assume_role_policy_attachment" {
-  role       = data.aws_iam_role.argocd_service_account.name
-  policy_arn = aws_iam_policy.argocd_admin_assume_role_policy.arn
-}
-
 resource "helm_release" "argocdmanagedcluster" {
-  provider         = helm.argocdcluster
-  depends_on       = [module.managed_eks, aws_iam_role_policy_attachment.argocd_admin_assume_role_policy_attachment]
-  name             = module.managed_eks.cluster_name
-  chart            = "${path.module}/../../charts/argocdmanagedcluster"
-  namespace        = "argocd"
-  version          = "0.1.0"
-  create_namespace = true
+  provider   = helm.argocdcluster
+  depends_on = [module.managed_eks]
+  name       = module.managed_eks.cluster_name
+  chart      = "${path.module}/../../charts/argocdmanagedcluster"
+  namespace  = "argocd"
+  version    = "0.1.0"
+
   set {
     name  = "cluster.name"
     value = module.managed_eks.cluster_name
@@ -188,36 +169,6 @@ resource "helm_release" "argocdmanagedcluster" {
   }
   set {
     name  = "cluster.endpoint"
-    value = module.managed_eks.cluster_endpoint
-  }
-}
-
-resource "helm_release" "argocdbaseapp" {
-  count            = var.create_baseapp ? 1 : 0
-  provider         = helm.argocdcluster
-  depends_on       = [helm_release.argocdmanagedcluster]
-  name             = "${module.managed_eks.cluster_name}-app"
-  chart            = "${path.module}/../../charts/argocdbaseapp"
-  namespace        = "argocd"
-  version          = "0.0.1"
-  create_namespace = true
-  set {
-    name  = "repository.url"
-    value = var.app_repository_url
-  }
-
-  set {
-    name  = "repository.branch"
-    value = var.app_repository_branch
-  }
-
-  set {
-    name  = "repository.path"
-    value = var.app_repository_path
-  }
-
-  set {
-    name  = "destination.url"
     value = module.managed_eks.cluster_endpoint
   }
 }

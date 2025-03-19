@@ -1,3 +1,26 @@
+data "aws_iam_policy_document" "spoke_cluster_secrets" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:PrincipalOrgId"
+      values = [
+        data.aws_organizations_organization.current.id
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "spoke_cluster_secrets" {
+  name               = "argocd-hub-spoke-access"
+  assume_role_policy = data.aws_iam_policy_document.spoke_cluster_secrets.json
+}
+
 module "central_eks" {
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-eks.git?ref=c60b70fbc80606eb4ed8cf47063ac6ed0d8dd435"
 
@@ -42,7 +65,7 @@ module "central_eks" {
 
   # Cluster access entry
   # To add the current caller identity as an administrator
-  enable_cluster_creator_admin_permissions = true
+  enable_cluster_creator_admin_permissions = false
 
   eks_managed_node_groups = {
     nodegroup = {
@@ -61,21 +84,23 @@ module "central_eks" {
       }
     }
   }
-  # access_entries = {
-  #   ssorole = {
-  #     kubernetes_groups = []
-  #     principal_arn     = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/aws-reserved/sso.amazonaws.com/${var.sso_cluster_admin_role_name}"
 
-  #     policy_associations = {
-  #       example = {
-  #         policy_arn = "arn:${data.aws_partition.current.partition}:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-  #         access_scope = {
-  #           type = "cluster"
-  #         }
-  #       }
-  #     }
-  #   }
-  # }
+  access_entries = {
+    spokes = {
+      kubernetes_groups = []
+      principal_arn     = aws_iam_role.spoke_cluster_secrets.arn
+
+      policy_associations = {
+        argocd = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
+          access_scope = {
+            namespaces = ["argocd"]
+            type       = "namespace"
+          }
+        }
+      }
+    }
+  }
   cluster_upgrade_policy = {
     support_type = var.central_eks_cluster.cluster_support_type
   }
@@ -204,4 +229,36 @@ resource "helm_release" "argocdingress" {
     name  = "argocdlb.subnetlist"
     value = join("\\,", local.public_subnet_ids)
   }
+}
+
+
+resource "aws_ssm_parameter" "hub" {
+  name = "hub"
+  type = "String"
+  tier = "Advanced"
+  value = jsonencode(
+    {
+      "cluster_name" : module.central_eks.cluster_name,
+      "cluster_endpoint" : module.central_eks.cluster_endpoint
+      "cluster_certificate_authority_data" : module.central_eks.cluster_certificate_authority_data,
+      "cluster_region" : data.aws_region.current.name,
+      "argocd_iam_role_arn" : module.argocd_pod_identity.iam_role_arn,
+      "spoke_cluster_secrets_arn" : aws_iam_role.spoke_cluster_secrets.arn,
+    }
+  )
+}
+
+resource "aws_ram_resource_share" "hub" {
+  name                      = "hub"
+  allow_external_principals = false
+}
+
+resource "aws_ram_principal_association" "hub" {
+  principal          = data.aws_organizations_organization.current.arn
+  resource_share_arn = aws_ram_resource_share.hub.arn
+}
+
+resource "aws_ram_resource_association" "hub" {
+  resource_arn       = aws_ssm_parameter.hub.arn
+  resource_share_arn = aws_ram_resource_share.hub.arn
 }

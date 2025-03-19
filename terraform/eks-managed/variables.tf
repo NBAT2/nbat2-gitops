@@ -133,3 +133,11 @@ variable "vpc_name" {
   description = "name of VPC that the EKS cluster will be associated with"
   default     = ""
 }
+
+variable "environment" {
+  type = string
+}
+variable "hub_parameter_arn" {
+  type    = string
+  default = ""
+}

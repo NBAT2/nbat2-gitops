@@ -34,16 +34,15 @@ data "aws_subnets" "public" {
   }
 }
 
-data "aws_iam_role" "argocd_service_account" {
-  name = "${var.central_name_prefix}ManagementRole"
+provider "aws" {
+  alias  = "hub"
+  region = "us-east-1"
 }
 
-data "aws_eks_cluster" "argocd" {
-  name = var.central_cluster_name
+data "aws_ssm_parameter" "hub" {
+  name     = var.hub_parameter_arn
+  provider = aws.hub
 }
 
-data "aws_security_group" "central_cluster_node" {
-  tags = {
-    Name = "${var.central_cluster_name}-node"
-  }
-}
+
+
